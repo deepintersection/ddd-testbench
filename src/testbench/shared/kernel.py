@@ -1,4 +1,3 @@
-
 """
 Shared Kernel — value objects and types used across all bounded contexts.
 """
@@ -15,10 +14,22 @@ from typing import Optional
 # ─── Identifiers ───────────────────────────────────────────────
 
 def generate_id() -> str:
+    """
+    Create a new UUID4 identifier as a string.
+    
+    Returns:
+        A string containing a randomly generated UUID version 4 (e.g., "3f8f9e2e-...").
+    """
     return str(uuid.uuid4())
 
 
 def utc_now() -> datetime:
+    """
+    Get the current time in UTC.
+    
+    Returns:
+        A timezone-aware datetime representing the current UTC time.
+    """
     return datetime.now(timezone.utc)
 
 
@@ -127,25 +138,73 @@ class TestDefinitionRepository(ABC):
     """
 
     @abstractmethod
-    def find_by_code(self, code: str) -> dict | None: ...
+    def find_by_code(self, code: str) -> dict | None: """
+Look up a test definition using its unique code.
+
+Parameters:
+    code (str): The test definition code to search for.
+
+Returns:
+    dict | None: The test definition record if found, otherwise `None`.
+"""
+...
 
     @abstractmethod
-    def find_by_scope(self, subsystem_scope: str) -> list[dict]: ...
+    def find_by_scope(self, subsystem_scope: str) -> list[dict]: """
+Return all test definition records that belong to the given subsystem scope.
+
+Parameters:
+    subsystem_scope (str): Subsystem scope identifier used to filter test definitions.
+
+Returns:
+    list[dict]: A list of test definition dictionaries (each typically containing keys such as `code`, `name`, `description`, `scope`, `duration`, and `runnable_during_stress`).
+"""
+...
 
     @abstractmethod
     def save(self, code: str, name: str, description: str,
              subsystem_scope: str, estimated_duration_seconds: int,
-             runnable_during_stress: bool = True) -> None: ...
+             runnable_during_stress: bool = True) -> None: """
+             Persist a test definition for the given subsystem scope.
+             
+             Parameters:
+                 code (str): Unique identifier for the test definition.
+                 name (str): Human-readable name of the test.
+                 description (str): Detailed description of what the test verifies.
+                 subsystem_scope (str): Subsystem or scope the test applies to.
+                 estimated_duration_seconds (int): Expected time to execute the test in seconds.
+                 runnable_during_stress (bool): Whether the test is safe to run during stress conditions (defaults to True).
+             """
+             ...
 
     @abstractmethod
-    def exists(self, code: str) -> bool: ...
+    def exists(self, code: str) -> bool: """
+Check whether a test definition with the given code exists.
+
+Parameters:
+    code (str): The unique code identifying the test definition.
+
+Returns:
+    True if a test definition with the given code exists, False otherwise.
+"""
+...
 
 
 class MonitorChannelRepository(ABC):
     """Port for persisting DUT monitor channels and thresholds."""
 
     @abstractmethod
-    def find_by_dut(self, dut_id: str, channel_name: str) -> dict | None: ...
+    def find_by_dut(self, dut_id: str, channel_name: str) -> dict | None: """
+Retrieve a monitor channel definition for a device-under-test (DUT) by channel name.
+
+Parameters:
+    dut_id (str): Identifier of the DUT.
+    channel_name (str): Name of the monitor channel to look up.
+
+Returns:
+    dict | None: Channel configuration dictionary if found, `None` otherwise.
+"""
+...
 
     @abstractmethod
     def save_channel(self, dut_id: str, channel_name: str, channel_type: str,
@@ -153,7 +212,21 @@ class MonitorChannelRepository(ABC):
                      nominal: tuple[float, float],
                      warning: tuple[float, float],
                      abort: tuple[float, float],
-                     context: str = "ambient") -> None: ...
+                     context: str = "ambient") -> None: """
+                     Persist monitor channel configuration for a device under test (DUT).
+                     
+                     Parameters:
+                     	dut_id (str): Identifier of the DUT that owns the channel.
+                     	channel_name (str): Logical name of the monitor channel.
+                     	channel_type (str): Type/category of the channel (e.g., "voltage", "temperature").
+                     	unit (str): Unit symbol or identifier for measurements produced by the channel.
+                     	subsystem (str): Subsystem or scope the channel belongs to.
+                     	nominal (tuple[float, float]): Nominal lower and upper values as (lower, upper).
+                     	warning (tuple[float, float]): Warning threshold lower and upper values as (lower, upper).
+                     	abort (tuple[float, float]): Abort threshold lower and upper values as (lower, upper).
+                     	context (str): Measurement context or environment (default "ambient").
+                     """
+                     ...
 
 
 # ─── Physical Quantity ──────────────────────────────────────────
@@ -166,6 +239,11 @@ class PhysicalQuantity:
     mode: MeasurementMode = MeasurementMode.DC
 
     def __str__(self) -> str:
+        """
+        Return a human-readable representation of the physical quantity including its numeric value, unit, and measurement mode.
+        
+        @returns A string formatted as "<value> <unit>" when the mode is DC, or "<value> <unit><mode>" for other modes; the numeric value is shown with up to four significant digits.
+        """
         if self.mode == MeasurementMode.DC:
             return f"{self.value:.4g} {self.unit.value}"
         return f"{self.value:.4g} {self.unit.value}{self.mode.value}"
@@ -182,13 +260,44 @@ class Tolerance:
 
     @classmethod
     def symmetric(cls, nominal: float, delta: float, unit: Unit) -> Tolerance:
+        """
+        Create a tolerance with symmetric upper and lower bounds around a nominal value.
+        
+        Parameters:
+            nominal (float): Center value for the tolerance.
+            delta (float): Absolute amount added to and subtracted from `nominal` to form bounds.
+            unit (Unit): Unit of the nominal value and bounds.
+        
+        Returns:
+            Tolerance: Instance whose `upper` is `nominal + delta`, `lower` is `nominal - delta`, and `unit` is `unit`.
+        """
         return cls(nominal=nominal, upper=nominal + delta, lower=nominal - delta, unit=unit)
 
     @classmethod
     def percentage(cls, nominal: float, pct: float, unit: Unit) -> Tolerance:
+        """
+        Create a tolerance around a nominal value using a percentage of that nominal.
+        
+        Parameters:
+        	nominal (float): The nominal (center) value.
+        	pct (float): The percentage to apply to `nominal` (e.g., 5.0 for 5%).
+        	unit (Unit): The unit of the nominal value and tolerance.
+        
+        Returns:
+        	tolerance (Tolerance): Tolerance with `upper` = nominal + nominal * pct / 100 and `lower` = nominal - nominal * pct / 100.
+        """
         return cls.symmetric(nominal, nominal * pct / 100.0, unit)
 
     def contains(self, value: float) -> bool:
+        """
+        Determine whether a numeric value lies within the tolerance bounds (inclusive).
+        
+        Parameters:
+            value (float): The numeric value to test against the tolerance's lower and upper bounds.
+        
+        Returns:
+            `true` if the value is greater than or equal to `lower` and less than or equal to `upper`, `false` otherwise.
+        """
         return self.lower <= value <= self.upper
 
 
