@@ -15,10 +15,10 @@ from typing import Optional
 
 def generate_id() -> str:
     """
-    Create a new UUID4 identifier as a string.
+    Generate a UUID version 4 identifier string.
     
     Returns:
-        A string containing a randomly generated UUID version 4 (e.g., "3f8f9e2e-...").
+        A UUID v4 string (e.g., "3f8f9e2e-...").
     """
     return str(uuid.uuid4())
 
@@ -151,13 +151,13 @@ Returns:
 
     @abstractmethod
     def find_by_scope(self, subsystem_scope: str) -> list[dict]: """
-Return all test definition records that belong to the given subsystem scope.
+Retrieve all test definition records for the given subsystem scope.
 
 Parameters:
     subsystem_scope (str): Subsystem scope identifier used to filter test definitions.
 
 Returns:
-    list[dict]: A list of test definition dictionaries (each typically containing keys such as `code`, `name`, `description`, `scope`, `duration`, and `runnable_during_stress`).
+    list[dict]: List of test definition dictionaries, typically containing keys such as `code`, `name`, `description`, `scope`, `duration`, and `runnable_during_stress`.
 """
 ...
 
@@ -213,17 +213,17 @@ Returns:
                      warning: tuple[float, float],
                      abort: tuple[float, float],
                      context: str = "ambient") -> None: """
-                     Persist monitor channel configuration for a device under test (DUT).
+                     Persist monitor channel configuration for a device under test.
                      
                      Parameters:
                      	dut_id (str): Identifier of the DUT that owns the channel.
                      	channel_name (str): Logical name of the monitor channel.
-                     	channel_type (str): Type/category of the channel (e.g., "voltage", "temperature").
+                     	channel_type (str): Category of the channel (e.g., "voltage", "temperature").
                      	unit (str): Unit symbol or identifier for measurements produced by the channel.
                      	subsystem (str): Subsystem or scope the channel belongs to.
-                     	nominal (tuple[float, float]): Nominal lower and upper values as (lower, upper).
-                     	warning (tuple[float, float]): Warning threshold lower and upper values as (lower, upper).
-                     	abort (tuple[float, float]): Abort threshold lower and upper values as (lower, upper).
+                     	nominal (tuple[float, float]): Nominal bounds as (lower, upper).
+                     	warning (tuple[float, float]): Warning threshold bounds as (lower, upper).
+                     	abort (tuple[float, float]): Abort threshold bounds as (lower, upper).
                      	context (str): Measurement context or environment (default "ambient").
                      """
                      ...
@@ -240,9 +240,10 @@ class PhysicalQuantity:
 
     def __str__(self) -> str:
         """
-        Return a human-readable representation of the physical quantity including its numeric value, unit, and measurement mode.
+        Format the physical quantity as a human-readable string including value, unit, and mode.
         
-        @returns A string formatted as "<value> <unit>" when the mode is DC, or "<value> <unit><mode>" for other modes; the numeric value is shown with up to four significant digits.
+        Returns:
+            str: The numeric value shown with up to four significant digits followed by the unit; if the measurement mode is not DC, the mode is appended immediately after the unit (e.g. "1.23 V" or "1.23 Vrms").
         """
         if self.mode == MeasurementMode.DC:
             return f"{self.value:.4g} {self.unit.value}"
@@ -261,15 +262,15 @@ class Tolerance:
     @classmethod
     def symmetric(cls, nominal: float, delta: float, unit: Unit) -> Tolerance:
         """
-        Create a tolerance with symmetric upper and lower bounds around a nominal value.
+        Create a Tolerance with symmetric upper and lower bounds around a nominal value.
         
         Parameters:
             nominal (float): Center value for the tolerance.
-            delta (float): Absolute amount added to and subtracted from `nominal` to form bounds.
+            delta (float): Absolute amount added to and subtracted from the nominal value to form bounds.
             unit (Unit): Unit of the nominal value and bounds.
         
         Returns:
-            Tolerance: Instance whose `upper` is `nominal + delta`, `lower` is `nominal - delta`, and `unit` is `unit`.
+            Tolerance: Instance with `upper = nominal + delta` and `lower = nominal - delta`.
         """
         return cls(nominal=nominal, upper=nominal + delta, lower=nominal - delta, unit=unit)
 
@@ -290,13 +291,13 @@ class Tolerance:
 
     def contains(self, value: float) -> bool:
         """
-        Determine whether a numeric value lies within the tolerance bounds (inclusive).
+        Return whether `value` lies between the tolerance's `lower` and `upper` bounds (inclusive).
         
         Parameters:
-            value (float): The numeric value to test against the tolerance's lower and upper bounds.
+            value (float): Value to test against the tolerance bounds.
         
         Returns:
-            `true` if the value is greater than or equal to `lower` and less than or equal to `upper`, `false` otherwise.
+            `True` if `lower <= value <= upper`, `False` otherwise.
         """
         return self.lower <= value <= self.upper
 
