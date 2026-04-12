@@ -1,0 +1,164 @@
+# .coderabbit.yaml
+# TestBench — Nanosatellite IoT-5G Hardware Validation Platform
+# DDD + Repository Pattern (Percival) + FastAPI + SQLAlchemy
+
+language: en
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - develop
+
+  path_instructions:
+    # ─── SHARED KERNEL ──────────────────────────────────────
+    - path: "src/testbench/shared/**"
+      instructions: |
+        DDD Shared Kernel — used by ALL bounded contexts.
+        Must NOT import from any bounded context, persistence, api, or web.
+        Must NOT import sqlalchemy, fastapi, or any framework.
+        Changes here affect the entire system — review with extreme care.
+
+        Files:
+        - kernel.py: Unit enum, MeasurementMode enum, TestMeasurement/TestResult
+          (centralized), Tolerance, DomainEvent base, TestDefinitionRepository
+          and MonitorChannelRepository abstract interfaces (Percival pattern).
+          TestResult must remain frozen with tuple measurements.
+        - event_bus.py: synchronous pub/sub, framework-agnostic.
+        - ports.py: InstrumentPort (with capture_screenshot/capture_trace),
+          SpaceWirePort, TelemetryPort, VNAPort + null stubs.
+        - in_memory_repos.py: InMemoryTestDefinitionRepository and
+          InMemoryMonitorChannelRepository — for domain testing without DB.
+          Must NOT import from persistence or any infrastructure.
+
+    # ─── DOMAIN LAYERS ──────────────────────────────────────
+    - path: "src/testbench/*/domain/**"
+      instructions: |
+        Bounded context domain layer.
+        Must NOT import from persistence, api, web, sqlalchemy, or fastapi.
+        Must NOT import from other bounded contexts — use events via event bus.
+        Domain events must extend DomainEvent from shared kernel.
+
+    # ─── SUBSYSTEM DOMAINS ──────────────────────────────────
+    - path: "src/testbench/subsystems/*/domain/**"
+      instructions: |
+        Subsystem domain — ubiquitous language for a specific DUT type.
+        Must NOT import from persistence, api, web, sqlalchemy, or fastapi.
+        Must NOT import from other subsystems.
+        Should define: hardware-specific enums/dataclasses (frozen),
+        monitor channels with nominal/warning/abort thresholds,
+        test catalog with codes following <SUBSYSTEM>-<AREA>-<NNN>.
+
+    # ─── SUBSYSTEM TESTS ────────────────────────────────────
+    - path: "src/testbench/subsystems/*/tests/**"
+      instructions: |
+        Test implementations — the actual hardware test procedures.
+        CRITICAL DDD rules:
+        - Must NOT import from persistence, api, web, sqlalchemy, or fastapi.
+        - Must NOT import from other subsystems.
+        - Tests use instruments through abstract ports only.
+        - TestMeasurement and TestResult imported from shared kernel (not local copies).
+        - TestResult must be constructed with tuple(measurements), not a list.
+        - Each test class: inherits subsystem TestBase, defines code attribute,
+          implements run() -> TestResult.
+        Review for: correct limit logic, realistic timing, edge cases (0, NaN, timeout),
+        ProbeHealthError handling for scope-based tests.
+
+    # ─── SUBSYSTEM REGISTRIES (PERCIVAL) ────────────────────
+    - path: "src/testbench/subsystems/*/registry.py"
+      instructions: |
+        Test registry — maps codes to classes, seeds via repository interfaces.
+        PERCIVAL RULE: Must NOT import from persistence or infrastructure.
+        Must accept TestDefinitionRepository / MonitorChannelRepository interfaces
+        (from shared kernel), NOT SQLAlchemy sessions.
+        Check: every catalog code has a registry entry, seed functions use
+        repo.save() and repo.exists() — never session.add() or session.query().
+
+    # ─── PERSISTENCE (INFRASTRUCTURE) ───────────────────────
+    - path: "src/testbench/persistence/**"
+      instructions: |
+        SQLAlchemy infrastructure — ORM models and repository implementations.
+        - models.py: 17 tables with Row suffix. MeasurementRow has mode column.
+          Thin data containers — no business logic.
+        - repositories.py: SqlTestDefinitionRepository and SqlMonitorChannelRepository.
+          Implement interfaces defined in shared/kernel.py.
+          Only imported by API routers, never by domain or test code.
+        - database.py: engine/session factory, set_database_url().
+        Check FK relationships, JSON column defaults, mode column on MeasurementRow.
+
+    # ─── API ROUTERS ────────────────────────────────────────
+    - path: "src/testbench/api/routers/**"
+      instructions: |
+        FastAPI route handlers — outermost layer.
+        Each subsystem router (rcu.py, eps.py, payload_5g.py, emc.py) follows:
+        POST /seed, POST /configure-dut/{id}, GET /tests, POST /run.
+        Routers must create SqlTestDefinitionRepository(session) and pass to
+        registry seed functions — never pass raw sessions to domain code.
+        Check: Pydantic models for input validation, correct HTTP codes,
+        Depends(get_db) for session injection, no business logic in routes.
+
+    - path: "src/testbench/api/app.py"
+      instructions: |
+        FastAPI entry point. Verify all routers mounted:
+        projects, campaigns, execution, duts, instruments, rcu, eps, payload_5g, emc.
+        Check init_db() in startup event. Check new subsystem routers added here.
+
+    # ─── MOCK HARDWARE ──────────────────────────────────────
+    - path: "src/testbench/mocks/**"
+      instructions: |
+        Mock DUTs and instruments for testing without physical hardware.
+        - duts.py: MockEPS, MockRCU, MockPayload5G with Condition enum.
+          Should produce realistic values with noise and drift.
+        - instruments.py: 8 mock instruments implementing port interfaces.
+          MockOscilloscope must support probe failure simulation.
+        Mock instruments must implement all InstrumentPort methods including
+        capture_screenshot and capture_trace.
+
+    # ─── INSTRUMENT DRIVERS ─────────────────────────────────
+    - path: "src/testbench/instruments/**"
+      instructions: |
+        Real and supporting instrument code.
+        - probe_health.py: ProbeHealthChecker (4-layer detection),
+          ValidatedOscilloscope wrapper, ProbeHealthError, InstrumentFault event.
+          ValidatedOscilloscope must check probes before AND after measure().
+        - drivers/: future real instrument drivers (PyVISA). Must implement
+          port interfaces from shared/ports.py.
+
+    # ─── WEB LAYER ──────────────────────────────────────────
+    - path: "src/testbench/web/**"
+      instructions: |
+        Web dashboard (Jinja2). No business logic in templates.
+        No __init__.py in static/ or templates/ directories.
+
+    # ─── TESTS ──────────────────────────────────────────────
+    - path: "tests/**"
+      instructions: |
+        Unit and integration tests.
+        Use InMemoryTestDefinitionRepository for domain-level tests (no DB needed).
+        Use NullInstrumentPort / mock instruments for test isolation.
+        Verify TestResult.measurements is always a tuple, not a list.
+
+    # ─── CONFIG FILES ───────────────────────────────────────
+    - path: "pyproject.toml"
+      instructions: |
+        requires-python >= 3.11. Package: testbench. instruments extras for PyVISA.
+
+    - path: "README.md"
+      instructions: |
+        EPS walkthrough example. Checklist for adding new DUT types.
+        Architecture tree must include all 4 subsystem routers.
+        Must mention Percival repository pattern and in-memory testing.
+
+chat:
+  auto_reply: true
