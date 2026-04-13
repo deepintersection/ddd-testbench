@@ -10,13 +10,13 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
-
 # ─── Identifiers ───────────────────────────────────────────────
+
 
 def generate_id() -> str:
     """
     Generate a UUID version 4 identifier string.
-    
+
     Returns:
         A UUID v4 string (e.g., "3f8f9e2e-...").
     """
@@ -26,7 +26,7 @@ def generate_id() -> str:
 def utc_now() -> datetime:
     """
     Get the current time in UTC.
-    
+
     Returns:
         A timezone-aware datetime representing the current UTC time.
     """
@@ -35,8 +35,10 @@ def utc_now() -> datetime:
 
 # ─── Physical Units ────────────────────────────────────────────
 
+
 class Unit(Enum):
     """Physical dimension and scale."""
+
     # Voltage
     VOLT = "V"
     MILLIVOLT = "mV"
@@ -86,13 +88,14 @@ class Unit(Enum):
 
 class MeasurementMode(str, Enum):
     """How the value was acquired — the measurement coupling/mode."""
-    DC = "dc"               # DC average (default for most measurements)
-    RMS = "rms"             # True RMS (AC+DC or AC-only depending on coupling)
-    PEAK = "peak"           # Single-sided peak
-    PEAK_TO_PEAK = "pp"     # Peak-to-peak (Vpp, App)
-    AVERAGE = "avg"         # Arithmetic mean over N samples
-    MIN = "min"             # Minimum over capture window
-    MAX = "max"             # Maximum over capture window
+
+    DC = "dc"  # DC average (default for most measurements)
+    RMS = "rms"  # True RMS (AC+DC or AC-only depending on coupling)
+    PEAK = "peak"  # Single-sided peak
+    PEAK_TO_PEAK = "pp"  # Peak-to-peak (Vpp, App)
+    AVERAGE = "avg"  # Arithmetic mean over N samples
+    MIN = "min"  # Minimum over capture window
+    MAX = "max"  # Maximum over capture window
     INSTANTANEOUS = "inst"  # Single-shot sample
 
 
@@ -101,6 +104,7 @@ class MeasurementMode(str, Enum):
 # implementations produce them, every registry consumes them, and
 # the execution engine stores them. One definition, not three copies.
 
+
 @dataclass
 class TestMeasurement:
     """A single parameter measured during a test.
@@ -108,19 +112,21 @@ class TestMeasurement:
     Mutable during test execution (tests append raw_data_ref after capture).
     Becomes immutable once wrapped in a frozen TestResult.
     """
+
     parameter_name: str
     measured_value: float
     unit: str
-    mode: str = "dc"                    # MeasurementMode value
+    mode: MeasurementMode = MeasurementMode.DC
     nominal_value: float | None = None
     lower_limit: float | None = None
     upper_limit: float | None = None
-    raw_data_ref: str = ""              # path to screenshot, trace, waveform
+    raw_data_ref: str = ""  # path to screenshot, trace, waveform
 
 
 @dataclass(frozen=True)
 class TestResult:
     """Final result of a test execution — immutable once returned."""
+
     passed: bool
     measurements: tuple[TestMeasurement, ...] = ()
     notes: str = ""
@@ -128,6 +134,7 @@ class TestResult:
 
 
 # ─── Repository Interfaces (Percival: domain defines, infra implements) ──
+
 
 class TestDefinitionRepository(ABC):
     """Port for persisting test definitions.
@@ -138,102 +145,122 @@ class TestDefinitionRepository(ABC):
     """
 
     @abstractmethod
-    def find_by_code(self, code: str) -> dict | None: """
-Look up a test definition using its unique code.
+    def find_by_code(self, code: str) -> dict | None:
+        """
+        Look up a test definition using its unique code.
 
-Parameters:
-    code (str): The test definition code to search for.
+        Parameters:
+            code (str): The test definition code to search for.
 
-Returns:
-    dict | None: The test definition record if found, otherwise `None`.
-"""
-...
-
-    @abstractmethod
-    def find_by_scope(self, subsystem_scope: str) -> list[dict]: """
-Retrieve all test definition records for the given subsystem scope.
-
-Parameters:
-    subsystem_scope (str): Subsystem scope identifier used to filter test definitions.
-
-Returns:
-    list[dict]: List of test definition dictionaries, typically containing keys such as `code`, `name`, `description`, `scope`, `duration`, and `runnable_during_stress`.
-"""
-...
+        Returns:
+            dict | None: The test definition record if found, otherwise `None`.
+        """
+        ...
 
     @abstractmethod
-    def save(self, code: str, name: str, description: str,
-             subsystem_scope: str, estimated_duration_seconds: int,
-             runnable_during_stress: bool = True) -> None: """
-             Persist a test definition for the given subsystem scope.
-             
-             Parameters:
-                 code (str): Unique identifier for the test definition.
-                 name (str): Human-readable name of the test.
-                 description (str): Detailed description of what the test verifies.
-                 subsystem_scope (str): Subsystem or scope the test applies to.
-                 estimated_duration_seconds (int): Expected time to execute the test in seconds.
-                 runnable_during_stress (bool): Whether the test is safe to run during stress conditions (defaults to True).
-             """
-             ...
+    def find_by_scope(self, subsystem_scope: str) -> list[dict]:
+        """
+        Retrieve all test definition records for the given subsystem scope.
+
+        Parameters:
+            subsystem_scope (str): Subsystem scope identifier used to filter test definitions.
+
+        Returns:
+            list[dict]: List of test definition dictionaries, typically containing keys such as `code`, `name`, `description`, `scope`, `duration`, and `runnable_during_stress`.
+        """
+        ...
 
     @abstractmethod
-    def exists(self, code: str) -> bool: """
-Check whether a test definition with the given code exists.
+    def save(
+        self,
+        code: str,
+        name: str,
+        description: str,
+        subsystem_scope: str,
+        estimated_duration_seconds: int,
+        runnable_during_stress: bool = True,
+    ) -> None:
+        """
+        Persist a test definition for the given subsystem scope.
 
-Parameters:
-    code (str): The unique code identifying the test definition.
+        Parameters:
+         code (str): Unique identifier for the test definition.
+         name (str): Human-readable name of the test.
+         description (str): Detailed description of what the test verifies.
+         subsystem_scope (str): Subsystem or scope the test applies to.
+         estimated_duration_seconds (int): Expected time to execute the test in seconds.
+         runnable_during_stress (bool): Whether the test is safe to run during stress conditions (defaults to True).
+        """
+        ...
 
-Returns:
-    True if a test definition with the given code exists, False otherwise.
-"""
-...
+    @abstractmethod
+    def exists(self, code: str) -> bool:
+        """
+        Check whether a test definition with the given code exists.
+
+        Parameters:
+            code (str): The unique code identifying the test definition.
+
+        Returns:
+            True if a test definition with the given code exists, False otherwise.
+        """
+        ...
 
 
 class MonitorChannelRepository(ABC):
     """Port for persisting DUT monitor channels and thresholds."""
 
     @abstractmethod
-    def find_by_dut(self, dut_id: str, channel_name: str) -> dict | None: """
-Retrieve a monitor channel definition for a device-under-test (DUT) by channel name.
+    def find_by_dut(self, dut_id: str, channel_name: str) -> dict | None:
+        """
+        Retrieve a monitor channel definition for a device-under-test (DUT) by channel name.
 
-Parameters:
-    dut_id (str): Identifier of the DUT.
-    channel_name (str): Name of the monitor channel to look up.
+        Parameters:
+            dut_id (str): Identifier of the DUT.
+            channel_name (str): Name of the monitor channel to look up.
 
-Returns:
-    dict | None: Channel configuration dictionary if found, `None` otherwise.
-"""
-...
+        Returns:
+            dict | None: Channel configuration dictionary if found, `None` otherwise.
+        """
+        ...
 
     @abstractmethod
-    def save_channel(self, dut_id: str, channel_name: str, channel_type: str,
-                     unit: str, subsystem: str,
-                     nominal: tuple[float, float],
-                     warning: tuple[float, float],
-                     abort: tuple[float, float],
-                     context: str = "ambient") -> None: """
-                     Persist monitor channel configuration for a device under test.
-                     
-                     Parameters:
-                     	dut_id (str): Identifier of the DUT that owns the channel.
-                     	channel_name (str): Logical name of the monitor channel.
-                     	channel_type (str): Category of the channel (e.g., "voltage", "temperature").
-                     	unit (str): Unit symbol or identifier for measurements produced by the channel.
-                     	subsystem (str): Subsystem or scope the channel belongs to.
-                     	nominal (tuple[float, float]): Nominal bounds as (lower, upper).
-                     	warning (tuple[float, float]): Warning threshold bounds as (lower, upper).
-                     	abort (tuple[float, float]): Abort threshold bounds as (lower, upper).
-                     	context (str): Measurement context or environment (default "ambient").
-                     """
-                     ...
+    def save_channel(
+        self,
+        dut_id: str,
+        channel_name: str,
+        channel_type: str,
+        unit: str,
+        subsystem: str,
+        nominal: tuple[float, float],
+        warning: tuple[float, float],
+        abort: tuple[float, float],
+        context: str = "ambient",
+    ) -> None:
+        """
+        Persist monitor channel configuration for a device under test.
+
+        Parameters:
+        dut_id (str): Identifier of the DUT that owns the channel.
+        channel_name (str): Logical name of the monitor channel.
+        channel_type (str): Category of the channel (e.g., "voltage", "temperature").
+        unit (str): Unit symbol or identifier for measurements produced by the channel.
+        subsystem (str): Subsystem or scope the channel belongs to.
+        nominal (tuple[float, float]): Nominal bounds as (lower, upper).
+        warning (tuple[float, float]): Warning threshold bounds as (lower, upper).
+        abort (tuple[float, float]): Abort threshold bounds as (lower, upper).
+        context (str): Measurement context or environment (default "ambient").
+        """
+        ...
 
 
 # ─── Physical Quantity ──────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class PhysicalQuantity:
     """Immutable measured value with unit and mode."""
+
     value: float
     unit: Unit
     mode: MeasurementMode = MeasurementMode.DC
@@ -241,7 +268,7 @@ class PhysicalQuantity:
     def __str__(self) -> str:
         """
         Format the physical quantity as a human-readable string including value, unit, and mode.
-        
+
         Returns:
             str: The numeric value shown with up to four significant digits followed by the unit; if the measurement mode is not DC, the mode is appended immediately after the unit (e.g. "1.23 V" or "1.23 Vrms").
         """
@@ -251,6 +278,7 @@ class PhysicalQuantity:
 
 
 # ─── Tolerance ──────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class Tolerance:
@@ -263,39 +291,41 @@ class Tolerance:
     def symmetric(cls, nominal: float, delta: float, unit: Unit) -> Tolerance:
         """
         Create a Tolerance with symmetric upper and lower bounds around a nominal value.
-        
+
         Parameters:
             nominal (float): Center value for the tolerance.
             delta (float): Absolute amount added to and subtracted from the nominal value to form bounds.
             unit (Unit): Unit of the nominal value and bounds.
-        
+
         Returns:
             Tolerance: Instance with `upper = nominal + delta` and `lower = nominal - delta`.
         """
-        return cls(nominal=nominal, upper=nominal + delta, lower=nominal - delta, unit=unit)
+        return cls(
+            nominal=nominal, upper=nominal + delta, lower=nominal - delta, unit=unit
+        )
 
     @classmethod
     def percentage(cls, nominal: float, pct: float, unit: Unit) -> Tolerance:
         """
         Create a tolerance around a nominal value using a percentage of that nominal.
-        
+
         Parameters:
-        	nominal (float): The nominal (center) value.
-        	pct (float): The percentage to apply to `nominal` (e.g., 5.0 for 5%).
-        	unit (Unit): The unit of the nominal value and tolerance.
-        
+                nominal (float): The nominal (center) value.
+                pct (float): The percentage to apply to `nominal` (e.g., 5.0 for 5%).
+                unit (Unit): The unit of the nominal value and tolerance.
+
         Returns:
-        	tolerance (Tolerance): Tolerance with `upper` = nominal + nominal * pct / 100 and `lower` = nominal - nominal * pct / 100.
+                tolerance (Tolerance): Tolerance with `upper` = nominal + nominal * pct / 100 and `lower` = nominal - nominal * pct / 100.
         """
         return cls.symmetric(nominal, nominal * pct / 100.0, unit)
 
     def contains(self, value: float) -> bool:
         """
         Return whether `value` lies between the tolerance's `lower` and `upper` bounds (inclusive).
-        
+
         Parameters:
             value (float): Value to test against the tolerance bounds.
-        
+
         Returns:
             `True` if `lower <= value <= upper`, `False` otherwise.
         """
@@ -304,6 +334,7 @@ class Tolerance:
 
 # ─── Base Domain Event ──────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class DomainEvent:
     event_id: str = field(default_factory=generate_id)
@@ -311,6 +342,7 @@ class DomainEvent:
 
 
 # ─── Hardware Revision ──────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class HardwareRevision:
