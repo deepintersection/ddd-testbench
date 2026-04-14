@@ -105,22 +105,21 @@ class MeasurementMode(str, Enum):
 # the execution engine stores them. One definition, not three copies.
 
 
-@dataclass
+@dataclass(frozen=True)
 class TestMeasurement:
     """A single parameter measured during a test.
 
-    Mutable during test execution (tests append raw_data_ref after capture).
-    Becomes immutable once wrapped in a frozen TestResult.
+    Immutable value object containing all measurement data and metadata.
     """
 
     parameter_name: str
     measured_value: float
-    unit: str
+    unit: Unit
     mode: MeasurementMode = MeasurementMode.DC
     nominal_value: float | None = None
     lower_limit: float | None = None
     upper_limit: float | None = None
-    raw_data_ref: str = ""  # path to screenshot, trace, waveform
+    raw_data_ref: tuple[str, ...] = ()  # paths to screenshots, traces, waveforms
 
 
 @dataclass(frozen=True)
@@ -334,7 +333,7 @@ class Tolerance:
 # ─── Base Domain Event ──────────────────────────────────────────
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DomainEvent:
     event_id: str = field(default_factory=generate_id)
     occurred_at: datetime = field(default_factory=utc_now)
