@@ -301,6 +301,8 @@ class Tolerance:
         Returns:
             Tolerance: Instance with `upper = nominal + delta` and `lower = nominal - delta`.
         """
+        if delta < 0:
+            raise ValueError(f"delta must be >= 0, got {delta}")
         return cls(
             nominal=nominal, upper=nominal + delta, lower=nominal - delta, unit=unit
         )
@@ -309,15 +311,17 @@ class Tolerance:
     def percentage(cls, nominal: float, pct: float, unit: Unit) -> Tolerance:
         """
         Create a Tolerance around a nominal value using a percentage of that nominal.
-        
+
         Parameters:
             nominal (float): Center value for the tolerance.
             pct (float): Percentage of `nominal` to use as the half-width (e.g., 5.0 for 5%).
             unit (Unit): Unit of the nominal value and resulting bounds.
-        
+
         Returns:
             Tolerance: Tolerance with `upper = nominal + nominal * pct / 100` and `lower = nominal - nominal * pct / 100`.
         """
+        if pct < 0:
+            raise ValueError(f"pct must be >= 0, got {pct}")
         return cls.symmetric(nominal, nominal * pct / 100.0, unit)
 
     def contains(self, value: float) -> bool:
