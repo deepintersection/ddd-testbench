@@ -177,6 +177,7 @@ class TestDefinitionRepository(ABC):
         description: str,
         subsystem_scope: str,
         estimated_duration_seconds: int,
+        *,
         runnable_during_stress: bool = True,
     ) -> None:
         """
