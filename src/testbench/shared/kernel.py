@@ -181,28 +181,28 @@ class TestDefinitionRepository(ABC):
         runnable_during_stress: bool = True,
     ) -> None:
         """
-        Persist a test definition for the given subsystem scope.
-
+        Store a test definition for the given subsystem scope.
+        
         Parameters:
-         code (str): Unique identifier for the test definition.
-         name (str): Human-readable name of the test.
-         description (str): Detailed description of what the test verifies.
-         subsystem_scope (str): Subsystem or scope the test applies to.
-         estimated_duration_seconds (int): Expected time to execute the test in seconds.
-         runnable_during_stress (bool): Whether the test is safe to run during stress conditions (defaults to True).
+        	code: Unique test code used as the persistent identifier.
+        	name: Human-readable test name.
+        	description: What the test verifies and any important details.
+        	subsystem_scope: Subsystem or scope the test applies to.
+        	estimated_duration_seconds: Expected execution time in seconds.
+        	runnable_during_stress: Whether the test is safe to run during stress conditions (defaults to True).
         """
         ...
 
     @abstractmethod
     def exists(self, code: str) -> bool:
         """
-        Check whether a test definition with the given code exists.
-
+        Determines whether a test definition with the given code exists.
+        
         Parameters:
             code (str): The unique code identifying the test definition.
-
+        
         Returns:
-            True if a test definition with the given code exists, False otherwise.
+            bool: `True` if a test definition with the given code exists, `False` otherwise.
         """
         ...
 
@@ -267,10 +267,12 @@ class PhysicalQuantity:
 
     def __str__(self) -> str:
         """
-        Format the physical quantity as a human-readable string including value, unit, and mode.
-
+        Return a human-readable representation of the physical quantity including its numeric value, unit, and measurement mode.
+        
+        The numeric value is formatted with up to four significant digits; if the mode is not DC, the mode text is appended immediately after the unit (for example, "1.23 V" or "1.23 Vrms").
+        
         Returns:
-            str: The numeric value shown with up to four significant digits followed by the unit; if the measurement mode is not DC, the mode is appended immediately after the unit (e.g. "1.23 V" or "1.23 Vrms").
+            str: The formatted string representation.
         """
         if self.mode == MeasurementMode.DC:
             return f"{self.value:.4g} {self.unit.value}"
@@ -307,27 +309,24 @@ class Tolerance:
     @classmethod
     def percentage(cls, nominal: float, pct: float, unit: Unit) -> Tolerance:
         """
-        Create a tolerance around a nominal value using a percentage of that nominal.
-
+        Create a Tolerance around a nominal value using a percentage of that nominal.
+        
         Parameters:
-                nominal (float): The nominal (center) value.
-                pct (float): The percentage to apply to `nominal` (e.g., 5.0 for 5%).
-                unit (Unit): The unit of the nominal value and tolerance.
-
+            nominal (float): Center value for the tolerance.
+            pct (float): Percentage of `nominal` to use as the half-width (e.g., 5.0 for 5%).
+            unit (Unit): Unit of the nominal value and resulting bounds.
+        
         Returns:
-                tolerance (Tolerance): Tolerance with `upper` = nominal + nominal * pct / 100 and `lower` = nominal - nominal * pct / 100.
+            Tolerance: Tolerance with `upper = nominal + nominal * pct / 100` and `lower = nominal - nominal * pct / 100`.
         """
         return cls.symmetric(nominal, nominal * pct / 100.0, unit)
 
     def contains(self, value: float) -> bool:
         """
-        Return whether `value` lies between the tolerance's `lower` and `upper` bounds (inclusive).
-
-        Parameters:
-            value (float): Value to test against the tolerance bounds.
-
+        Determine whether a numeric value falls within the tolerance bounds (inclusive).
+        
         Returns:
-            `True` if `lower <= value <= upper`, `False` otherwise.
+            `true` if the value is greater than or equal to `lower` and less than or equal to `upper`, `false` otherwise.
         """
         return self.lower <= value <= self.upper
 
